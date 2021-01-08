@@ -134,7 +134,7 @@ impl BcmlInstaller {
                     &pypath,
                     "-m pip install -U bcml",
                     "Update BCML",
-                    &start_dir.join("Upate BCML.lnk"),
+                    &start_dir.join("Update.lnk"),
                     Some(&cwd),
                     None,
                 )?;
@@ -144,7 +144,7 @@ impl BcmlInstaller {
                     std::env::current_exe()?,
                     "--uninstall",
                     "Uninstall BCML",
-                    start_dir.join("Uninstall BCML.lnk"),
+                    start_dir.join("Uninstall.lnk"),
                     Some(cwd.clone()),
                     None,
                 )?;
