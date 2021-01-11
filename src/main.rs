@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use native_windows_derive as nwd;
 use native_windows_gui as nwg;
 use std::os::windows::process::CommandExt;
@@ -103,6 +103,19 @@ impl BcmlInstaller {
     fn do_it(&self) {
         let runner = || -> Result<()> {
             let cwd = std::env::current_dir()?;
+
+            for file in glob::glob("**/*.dll")
+                .unwrap()
+                .chain(glob::glob("**/*.exe").unwrap())
+                .flat_map(|f| f.ok())
+            {
+                let ads = format!(
+                    "{}:Zone.Identifier",
+                    file.file_name().unwrap().to_str().unwrap()
+                );
+                std::fs::remove_file(file.with_file_name(&ads)).ok();
+            }
+
             let pypath = cwd.join("pythonw.exe").canonicalize()?;
             let start_dir = PathBuf::from(std::env::var("APPDATA")?)
                 .join(r"Microsoft\Windows\Start Menu\Programs\BCML");
@@ -164,7 +177,7 @@ impl BcmlInstaller {
                 title: "BCML Installed",
                 content: "BCML was successfully installed. Do you want to exit?",
                 buttons: nwg::MessageButtons::OkCancel,
-                icons: nwg::MessageIcons::Question
+                icons: nwg::MessageIcons::Question,
             }) {
                 self.close();
             }

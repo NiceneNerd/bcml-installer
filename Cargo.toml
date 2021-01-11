@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
+glob = "0.3"
 native-windows-gui = "1.0"
 native-windows-derive = "1.0"
 winapi = "0.3"
