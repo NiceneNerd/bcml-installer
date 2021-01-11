@@ -1,6 +1,6 @@
 [package]
 name = "bcml-installer"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Caleb Smith <macadamiadaze@gmail.com>"]
 edition = "2018"
 
