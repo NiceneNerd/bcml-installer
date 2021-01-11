@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use native_windows_derive as nwd;
 use native_windows_gui as nwg;
 use std::os::windows::process::CommandExt;
@@ -54,16 +54,18 @@ objLink.Save
                 "".to_owned()
             }
         ),
-    )?;
+    )
+    .with_context(|| "Failed to create shortcut generator script")?;
     let output = std::process::Command::new("cscript")
         .args(&["/nologo", file.to_str().unwrap()])
         .creation_flags(0x00000008)
-        .output()?;
+        .output()
+        .with_context(|| "Failed to run shortcut generator script")?;
     if !output.stderr.is_empty() {
         let msg = String::from_utf8_lossy(&output.stderr);
         bail!("{}", msg);
     }
-    std::fs::remove_file(&file)?;
+    std::fs::remove_file(&file).ok();
     Ok(())
 }
 
@@ -102,7 +104,11 @@ pub struct BcmlInstaller {
 impl BcmlInstaller {
     fn do_it(&self) {
         let runner = || -> Result<()> {
-            let cwd = std::env::current_dir()?;
+            let cwd = std::env::current_exe()
+                .with_context(|| "Failed to get path to current executable")?
+                .parent()
+                .ok_or(anyhow!("Failed to get parent dir of executable"))?
+                .to_owned();
 
             for file in glob::glob("**/*.dll")
                 .unwrap()
@@ -120,7 +126,8 @@ impl BcmlInstaller {
             let start_dir = PathBuf::from(std::env::var("APPDATA")?)
                 .join(r"Microsoft\Windows\Start Menu\Programs\BCML");
             let icon = cwd.join(r"Lib\site-packages\bcml\data\bcml.ico");
-            std::fs::create_dir_all(&start_dir)?;
+            std::fs::create_dir_all(&start_dir)
+                .with_context(|| "Failed to create Start Menu folder")?;
 
             if let nwg::CheckBoxState::Checked = self.start_bcml.check_state() {
                 create_link(
@@ -154,7 +161,7 @@ impl BcmlInstaller {
             }
             if let nwg::CheckBoxState::Checked = self.uninstall_bcml.check_state() {
                 create_link(
-                    std::env::current_exe()?,
+                    std::env::current_exe().unwrap(),
                     "--uninstall",
                     "Uninstall BCML",
                     start_dir.join("Uninstall.lnk"),
@@ -164,9 +171,14 @@ impl BcmlInstaller {
             }
             if let nwg::CheckBoxState::Checked = self.do_path.check_state() {
                 let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-                let (env, _) = hkcu.create_subkey("Environment")?;
-                let env_path: String = env.get_value("PATH")?;
-                env.set_value("PATH", &format!("{};{}", &env_path, cwd.to_str().unwrap()))?;
+                let (env, _) = hkcu
+                    .create_subkey("Environment")
+                    .with_context(|| r"Failed to access registry key HKCU\Environment")?;
+                let env_path: String = env
+                    .get_value("PATH")
+                    .with_context(|| "Failed to access PATH value in registry")?;
+                env.set_value("PATH", &format!("{};{}", &env_path, cwd.to_str().unwrap()))
+                    .with_context(|| "Failed to set new PATH value")?;
             };
             Ok(())
         };
